@@ -106,6 +106,11 @@ sub properties {
       type        => "integer",
       default     => 1
     },
+    volscope => {
+      description => "Set volume assignment scope (1 = node | 2 = cluster)",
+      type        => "integer",
+      default     => 1
+    },
   };
 }
 
@@ -120,6 +125,7 @@ sub options {
     vnprefix  => { optional => 1 },
     check_ssl => { optional => 1 },
     protocol  => { optional => 1 },
+    volscope  => { optional => 1 },
     nodes     => { optional => 1 },
     disable   => { optional => 1 },
     content   => { optional => 1 },
@@ -877,6 +883,9 @@ sub alloc_image {
     die "Error :: Failed to create volume \"$name\".\n";
   }
 
+  # Activate Volume on creation
+  $class->activate_volume( $storeid, $scfg, $name );
+
   return $name;
 }
 
@@ -1078,12 +1087,17 @@ sub activate_volume {
 sub deactivate_volume {
   my ( $class, $storeid, $scfg, $volname, $snapname, $cache ) = @_;
   print "Debug :: PVE::Storage::Custom::PureStoragePlugin::sub::deactivate_volume\n" if $DEBUG;
+  return 1 unless($volname =~ /vm-(\d+)-disk-/);
+  my $vmid = $1;
 
-  $class->unmap_volume( $storeid, $scfg, $volname, $snapname );
-
-  $class->purestorage_volume_connection( $scfg, $volname, 0 );
-
-  print "Info :: Volume \"$volname\" is deactivated.\n";
+  # Check if migration is happening (deactivation)
+  if (-e "/run/qemu-server/$vmid.migrate") {
+    $class->unmap_volume( $storeid, $scfg, $volname, $snapname );
+    $class->purestorage_volume_connection( $scfg, $volname, 0 ) unless($scfg->{volscope} == 2);
+    print "Info :: Volume \"$volname\" is deactivated.\n";
+  } else {
+    print "Info :: Volume \"$volname\" deactivativation skipped.\n";
+  }
 
   return 1;
 }

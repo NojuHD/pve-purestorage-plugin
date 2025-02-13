@@ -126,7 +126,6 @@ sub options {
 my $cmd = {
   fuser      => '/usr/bin/fuser',
   iscsiadm   => '/usr/bin/iscsiadm',
-  multipath  => '/sbin/multipath',
   multipathd => '/sbin/multipathd',
   blockdev   => '/usr/sbin/blockdev'
 };
@@ -209,9 +208,9 @@ sub scsi_rescan_device {
 
 sub multipath_check {
   my ( $wwid ) = @_;
-  my $output = `$cmd->{ "multipath" } -l $wwid`;
+  my $output = `$cmd->{ "multipathd" } show map $wwid format "%t"`;
 
-  return $output ne '';
+  return $output eq 'active';
 }
 
 sub wait_for {
